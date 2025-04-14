@@ -5,7 +5,7 @@ import copy
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# xxxx is the reviewer id
+# xxxx is the reviewer id (replace it with your own reviewer ID)
 urls = {
     7200: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
     16709: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
