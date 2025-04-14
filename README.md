@@ -2,4 +2,4 @@
 
 python ijcai.py
 
-Please star qwq~ :)
+Please **star** qwq~ :)
