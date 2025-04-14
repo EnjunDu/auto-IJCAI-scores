@@ -60,11 +60,14 @@ def send_email(subject, body):
 
 
 
+i=0
 # 主循环
 while True:
+    i+=1
+    print(f"--------------------{i}--------------------")
     for rid, url in urls.items():
         try:
-            response = requests.get(url, headers=headers, cookies=cookies, proxies=proxies, timeout=10)
+            response = requests.get(url, headers=headers, cookies=cookies,  timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 for question in data.get("Questions", []):
@@ -93,9 +96,9 @@ while True:
                         break
                 print("")
             else:
-                print(f"Failed to fetch {rid}, Status code: {response.status_code}")
+                print(f"[{i}] Failed to fetch {rid}, Status code: {response.status_code}")
         except Exception as e:
-            print(f"[Error] {rid} -> {e}")
+            print(f"[{i}] [Error] {rid} -> {e}")
 
     # 每 3 分钟检查一次
-    time.sleep(100)
+    time.sleep(180)
