@@ -60,24 +60,28 @@ def send_email(subject, body):
 
 
 
+
 i=0
-# 主循环
+rebuttal_seen = {}
+
 while True:
-    i+=1
+    i += 1
     print(f"--------------------{i}--------------------")
     for rid, url in urls.items():
         try:
-            response = requests.get(url, headers=headers, cookies=cookies,  timeout=10)
+            response = requests.get(url, headers=headers, cookies=cookies, timeout=10)
             if response.status_code == 200:
                 data = response.json()
+                rebuttal_found = "rebuttal" in response.text  # Check if 'rebuttal' appears in the response text
+
                 for question in data.get("Questions", []):
                     if question.get("Order") == 7:
                         new_value = question.get("Answers", [{}])[0].get("Value")
-                        print(f"[{rid}] {new_value}",end="")
+                        print(f"[{rid}] {new_value}", end="")
                         if rid not in last_scores:
                             last_scores[rid] = new_value
                         elif new_value != last_scores[rid]:
-                            # 发生了变化
+                            # 仅分数发生变化时发送通知
                             old = last_scores[rid]
                             last_scores[rid] = new_value  # 更新缓存值
                             title = data.get("SubmissionTitle", "Unknown Title")
@@ -91,6 +95,19 @@ while True:
                             )
                             print(msg)
                             send_email("IJCAI2025 - Review Score Changed", msg)
+                        elif rebuttal_found and not rebuttal_seen.get(rid, False):
+                            # 只在首次检测到 rebuttal 时发送通知
+                            rebuttal_seen[rid] = True
+                            title = data.get("SubmissionTitle", "Unknown Title")
+                            msg = (
+                                f"🔔 Rebuttal Detected!\n\n"
+                                f"Paper ID: {rid}\n"
+                                f"Title: {title}\n"
+                                f"Rebuttal found.\n"
+                                f"Link: {url}"
+                            )
+                            print(msg)
+                            send_email("IJCAI2025 - Rebuttal Detected", msg)
                         else:
                             print(f"[{rid}] No change: {new_value}")
                         break
