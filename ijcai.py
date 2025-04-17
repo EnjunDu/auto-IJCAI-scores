@@ -61,61 +61,81 @@ def send_email(subject, body):
 
 
 
-i=0
-rebuttal_seen = {}
+def monitor_review_scores():
+    i = 0
+    last_scores = {}
+    rebuttal_seen = {}
 
-while True:
-    i += 1
-    print(f"--------------------{i}--------------------")
-    for rid, url in urls.items():
+    while True:
+        i += 1
+        print(f"--------------------{i}--------------------")
+        for rid, url in urls.items():
+            try:
+                response = requests.get(url, headers=headers, cookies=cookies, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    rebuttal_found = "rebuttal" in response.text
+
+                    for question in data.get("Questions", []):
+                        if question.get("Order") == 7:
+                            new_value = question.get("Answers", [{}])[0].get("Value")
+                            print(f"[{rid}] {new_value}", end="")
+                            if rid not in last_scores:
+                                last_scores[rid] = new_value
+                            elif new_value != last_scores[rid]:
+                                old = last_scores[rid]
+                                last_scores[rid] = new_value
+                                title = data.get("SubmissionTitle", "Unknown Title")
+                                msg = (
+                                    f"🔔 Score Changed!\n\n"
+                                    f"Paper ID: {rid}\n"
+                                    f"Title: {title}\n"
+                                    f"Old Score: {old}\n"
+                                    f"New Score: {new_value}\n"
+                                    f"Link: {url}"
+                                )
+                                print(msg)
+                                send_email("IJCAI2025 - Review Score Changed", msg)
+                            elif rebuttal_found and not rebuttal_seen.get(rid, False):
+                                rebuttal_seen[rid] = True
+                                title = data.get("SubmissionTitle", "Unknown Title")
+                                msg = (
+                                    f"🔔 Rebuttal Detected!\n\n"
+                                    f"Paper ID: {rid}\n"
+                                    f"Title: {title}\n"
+                                    f"Rebuttal found.\n"
+                                    f"Link: {url}"
+                                )
+                                print(msg)
+                                send_email("IJCAI2025 - Rebuttal Detected", msg)
+                            else:
+                                print(f"[{rid}] No change: {new_value}")
+                            break
+                    print("")
+                else:
+                    print(f"[{i}] Failed to fetch {rid}, Status code: {response.status_code}")
+            except Exception as e:
+                print(f"[{i}] [Error] {rid} -> {e}")
+
+        time.sleep(180)
+
+
+def brute_force_metareview(start=10000, end=11000):
+    print(f"🔍 Brute-forcing MetaReviewViews from {start} to {end}...")
+    for rid in range(start, end):
+        url = f"https://cmt3.research.microsoft.com/api/odata/IJCAI2025/MetaReviewViews({rid})"
         try:
             response = requests.get(url, headers=headers, cookies=cookies, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                rebuttal_found = "rebuttal" in response.text  # Check if 'rebuttal' appears in the response text
-
-                for question in data.get("Questions", []):
-                    if question.get("Order") == 7:
-                        new_value = question.get("Answers", [{}])[0].get("Value")
-                        print(f"[{rid}] {new_value}", end="")
-                        if rid not in last_scores:
-                            last_scores[rid] = new_value
-                        elif new_value != last_scores[rid]:
-                            # 仅分数发生变化时发送通知
-                            old = last_scores[rid]
-                            last_scores[rid] = new_value  # 更新缓存值
-                            title = data.get("SubmissionTitle", "Unknown Title")
-                            msg = (
-                                f"🔔 Score Changed!\n\n"
-                                f"Paper ID: {rid}\n"
-                                f"Title: {title}\n"
-                                f"Old Score: {old}\n"
-                                f"New Score: {new_value}\n"
-                                f"Link: {url}"
-                            )
-                            print(msg)
-                            send_email("IJCAI2025 - Review Score Changed", msg)
-                        elif rebuttal_found and not rebuttal_seen.get(rid, False):
-                            # 只在首次检测到 rebuttal 时发送通知
-                            rebuttal_seen[rid] = True
-                            title = data.get("SubmissionTitle", "Unknown Title")
-                            msg = (
-                                f"🔔 Rebuttal Detected!\n\n"
-                                f"Paper ID: {rid}\n"
-                                f"Title: {title}\n"
-                                f"Rebuttal found.\n"
-                                f"Link: {url}"
-                            )
-                            print(msg)
-                            send_email("IJCAI2025 - Rebuttal Detected", msg)
-                        else:
-                            print(f"[{rid}] No change: {new_value}")
-                        break
-                print("")
+            if response.status_code == 200 and "does not exist." not in response.text:
+                print(f"✅ Found! MetaReview ID: {rid}")
+                send_email("IJCAI2025 - MetaReview Found",
+                           f"Found valid MetaReview ID: {rid}\nLink: {url}\n\nResponse:\n{response.text}")
+                break
             else:
-                print(f"[{i}] Failed to fetch {rid}, Status code: {response.status_code}")
+                print(f"❌ Not Found: {rid}")
         except Exception as e:
-            print(f"[{i}] [Error] {rid} -> {e}")
+            print(f"[Error] ID {rid} -> {e}")
 
-    # 每 3 分钟检查一次
-    time.sleep(180)
+
+if __name__ == "__main__":
+    brute_force_metareview(start=0, end=50000)
