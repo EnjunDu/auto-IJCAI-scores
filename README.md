@@ -68,7 +68,7 @@ python ijcai.py
 Or, from within another script:
 
 ```
-pythonCopyEditfrom parallel import monitor_review_scores
+from parallel import monitor_review_scores
 monitor_review_scores()
 ```
 
