@@ -10,6 +10,7 @@ This repository provides two Python scripts to help authors monitor review score
   - Tracks changes in review scores or detects rebuttal availability.
   - Sends email notifications when updates occur.
   - **`monitor_review_scores()` can also be used independently to continuously check review changes.**
+  - **The ijcai.py can search the meta-ID as well, but with much lower speed, if you are using your own computer instead of a server, then ijcai.py is highly recommended.**
 - **Parallel MetaReview ID Discovery (`parallel.py`)**
   - Scans potential `MetaReviewView` IDs to find valid ones.
   - Supports high-speed parallel requests with progress checkpoints.
