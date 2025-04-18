@@ -25,13 +25,6 @@ This repository provides two Python scripts to help authors monitor review score
 - `smtplib` (built-in)
 - Internet access (via proxy if required)
 
-Install requirements:
-
-```
-pip install requests
-```
-
-------
 
 ## ⚙️ Setup
 
